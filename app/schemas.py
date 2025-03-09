@@ -21,3 +21,10 @@ class UserLogin(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+
+# llm app
+class UserMessage(BaseModel):
+    system: str
+    assistant: str
+    user: str
