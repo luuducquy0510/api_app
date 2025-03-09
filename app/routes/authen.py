@@ -4,7 +4,10 @@ from .. import schemas, auth, models, database
 from sqlmodel import Session, select
 
 
-router = APIRouter()
+router = APIRouter(
+    tags=["Authentication"],
+    prefix="/user"
+)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 # @router.post("/create")
@@ -20,7 +23,10 @@ def create_account(accounts: schemas.UserCreate):
         session.add(db_acc)
         session.commit()
         session.refresh(db_acc)
-    return db_acc
+    return schemas.UserResponse(
+        username=db_acc.username,
+        fullname=db_acc.fullname
+    )
          
 
 def get_user_by_email(email: str):
