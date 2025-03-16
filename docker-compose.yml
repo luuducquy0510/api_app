@@ -1,13 +1,33 @@
 services: 
-  postgres:
-    image: postgres
-    restart: on-failure
-    environment:
-       - POSTGRES_USER=postgres
-       - POSTGRES_PASSWORD=postgres
-       - PGDATA=/var/lib/postgresql/data/pgdata
-       - POSTGRES_DB=postgres
-    volumes:
-       - ./postgres_data:/var/lib/postgresql
-    ports:
-       - 5432:5432
+   postgres:
+      image: postgres
+      restart: on-failure
+      environment:
+         - POSTGRES_USER=${DB_USER}
+         - POSTGRES_PASSWORD=${DB_PASSWORD}
+         - PGDATA=/var/lib/postgresql/data/pgdata
+         - POSTGRES_DB=${DB_NAME}
+      volumes:
+         - postgres_data:/var/lib/postgresql/data
+      ports:
+         - 5432:5432
+
+   fastapi_app:
+      container_name: fastapi_app
+      build: .
+      depends_on:
+         - postgres
+      ports:
+         - "8000:8000"
+      environment:
+         - DB_USER=${DB_USER}
+         - DB_PASSWORD=${DB_PASSWORD}
+         - DB_HOST=${DB_HOST}
+         - DB_PORT=${DB_PORT}
+         - DB_NAME=${DB_NAME}
+      volumes:
+         - .:/app
+      command: ["/bin/bash", "-c", "poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+
+volumes:
+   postgres_data: 

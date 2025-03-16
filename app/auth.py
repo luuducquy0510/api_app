@@ -1,13 +1,23 @@
 import jwt
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Depends
 from jwt.exceptions import InvalidTokenError
 from datetime import datetime, timedelta, timezone
+from typing import Annotated
+from fastapi.security import OAuth2PasswordBearer
+from app import schemas, database, models
+from sqlmodel import Session, select
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
-SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
-ALGORITHM = "HS256"
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -33,3 +43,26 @@ def verify_token(token: str):
         return payload
     except InvalidTokenError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+def get_user_by_email(email: str):
+    with Session(database.engine) as session:
+        return session.exec(select(models.User).filter(models.User.email == email)).first()
+  
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+        token_data = schemas.TokenData(email=email)
+    except InvalidTokenError:
+        raise credentials_exception
+    user = get_user_by_email(email=token_data.email)
+    if user is None:
+        raise credentials_exception
+    return user
